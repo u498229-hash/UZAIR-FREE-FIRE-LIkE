@@ -87,10 +87,10 @@ def load_accounts(server_name):
         return []
 
 async def generate_jwt_token(uid, password):
-    """Generate JWT token"""
+    """Generate JWT token - Updated to use EAT Token"""
     try:
         encoded_password = urllib.parse.quote(password)
-        url = f"https://ff-jwt-gen-api.lovable.app/api/public/token?uid={uid}&password={encoded_password}"
+        url = f"https://ff-jwt-gen-api.lovable.app/api/public/token?guest_uid={uid}&guest_password={encoded_password}"
         
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=24) as response:
@@ -98,7 +98,14 @@ async def generate_jwt_token(uid, password):
                     data = await response.json()
                     
                     if isinstance(data, dict):
-                        if 'jwt_token' in data:
+                        # Try to get EAT token first, then access_token, then jwt_token
+                        if 'eat_token' in data:
+                            return data['eat_token']
+                        elif 'token_access' in data:
+                            return data['token_access']
+                        elif 'access_token' in data:
+                            return data['access_token']
+                        elif 'jwt_token' in data:
                             return data['jwt_token']
                         elif 'token' in data:
                             return data['token']
@@ -426,10 +433,7 @@ if __name__ == '__main__':
     print("📁 Account files:")
     print("   - account_ind.txt (IND server)")
     print("   - account_br.txt (BR/US/SAC/NA servers)")
-    print("   - account_bd.txt (BD/RU server)")
+    print("   - account_bd.txt (BD/RU/PK server)")
     print("🧠 Smart feature: Tracks which accounts already liked")
     print("⚡ Only fresh accounts will send likes")
     app.run(host='0.0.0.0', port=5001, debug=True, use_reloader=False)
-# MINISTER LIKE API SRC UID PASSWORD 
-# POWERED BY : @minister_69
-# CHANNEL : @minister_6T9
