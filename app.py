@@ -46,6 +46,8 @@ def load_accounts(server_name):
             filename = "account_ind.txt"
         elif server_name in {"BR", "US", "SAC", "NA"}:
             filename = "account_br.txt"
+        elif server_name == "PK":
+            filename = "account_bd.txt"
         else:  # BD and others
             filename = "account_bd.txt"
         
@@ -281,6 +283,8 @@ def get_player_info(encrypted_uid, server_name, token):
         url = "https://client.ind.freefiremobile.com/GetPlayerPersonalShow"
     elif server_name in {"BR", "US", "SAC", "NA"}:
         url = "https://client.us.freefiremobile.com/GetPlayerPersonalShow"
+    elif server_name == "PK":
+        url = "https://clientbp.ggpolarbear.com/GetPlayerPersonalShow"
     else:
         url = "https://clientbp.ggpolarbear.com/GetPlayerPersonalShow"
 
@@ -313,7 +317,7 @@ def handle_requests():
         return jsonify({"error": "UID and server_name are required"}), 400
 
     # Valid servers
-    valid_servers = ["IND", "BR", "US", "SAC", "NA", "BD","RU"]
+    valid_servers = ["IND", "BR", "US", "SAC", "NA", "BD", "RU", "PK"]
     if server_name not in valid_servers:
         return jsonify({"error": f"Invalid server. Use: {valid_servers}"}), 400
 
@@ -366,6 +370,8 @@ def handle_requests():
         like_url = "https://client.ind.freefiremobile.com/LikeProfile"
     elif server_name in {"BR", "US", "SAC", "NA"}:
         like_url = "https://client.us.freefiremobile.com/LikeProfile"
+    elif server_name == "PK":
+        like_url = "https://clientbp.ggpolarbear.com/LikeProfile"
     else:
         like_url = "https://clientbp.ggpolarbear.com/LikeProfile"
 
