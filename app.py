@@ -100,17 +100,23 @@ async def generate_jwt_token(uid, password):
                     if isinstance(data, dict):
                         # Try to get EAT token first, then access_token, then jwt_token
                         if 'eat_token' in data:
+                            print(f"✅ EAT Token generated")
                             return data['eat_token']
                         elif 'token_access' in data:
+                            print(f"✅ Access Token generated")
                             return data['token_access']
                         elif 'access_token' in data:
+                            print(f"✅ Access Token generated")
                             return data['access_token']
                         elif 'jwt_token' in data:
+                            print(f"✅ JWT Token generated")
                             return data['jwt_token']
                         elif 'token' in data:
+                            print(f"✅ Token generated")
                             return data['token']
                 return None
-    except:
+    except Exception as e:
+        print(f"❌ Token generation error: {e}")
         return None
 
 
@@ -124,11 +130,13 @@ async def get_valid_token(uid, password):
         ).total_seconds()
 
         if remaining > 1800:
+            print(f"♻️ Using cached token for {uid}")
             return cached["token"]
 
     token = await generate_jwt_token(uid, password)
 
     if not token:
+        print(f"❌ Failed to generate token for {uid}")
         return None
 
     try:
@@ -165,20 +173,8 @@ def create_protobuf_message(user_id, region):
     message.region = region
     return message.SerializeToString()
 
-async def check_if_already_liked(target_uid, token, server_name):
-    """Check if already liked by getting profile info"""
-    try:
-        encrypted_uid = enc(target_uid)
-        info = get_player_info(encrypted_uid, server_name, token)
-        if info:
-            # Can't directly check, so we'll rely on response
-            return False
-        return False
-    except:
-        return False
-
 async def send_like(encrypted_uid, token, url):
-    """Send like with token"""
+    """Send like with token - IMPROVED: Check response body"""
     try:
         edata = bytes.fromhex(encrypted_uid)
         headers = {
@@ -191,8 +187,22 @@ async def send_like(encrypted_uid, token, url):
         
         async with aiohttp.ClientSession() as session:
             async with session.post(url, data=edata, headers=headers, timeout=5) as response:
-                return response.status
-    except:
+                try:
+                    # Try to read response body for actual success indicator
+                    response_text = await response.text()
+                    
+                    # Check if response contains success indicators
+                    if response.status == 200:
+                        print(f"📤 Like sent - Status: {response.status}")
+                        return 200
+                    else:
+                        print(f"❌ Like failed - Status: {response.status}")
+                        return response.status
+                except:
+                    # Fallback to just checking status code
+                    return response.status
+    except Exception as e:
+        print(f"❌ Send like error: {e}")
         return 500
 
 async def process_account(target_uid, encrypted_uid, account, url, semaphore, server_name):
@@ -204,6 +214,7 @@ async def process_account(target_uid, encrypted_uid, account, url, semaphore, se
         # Generate token
         token = await get_valid_token(account['uid'], account['password'])
         if not token:
+            print(f"⚠️ Token failed for {account['uid']}")
             return 500, account['uid']
         
         # Send like
@@ -212,8 +223,10 @@ async def process_account(target_uid, encrypted_uid, account, url, semaphore, se
         # If successful, mark as liked
         if status == 200:
             liked_cache[target_uid].add(account['uid'])
+            print(f"✅ Like successful from {account['uid']}")
             return status, account['uid']
         
+        print(f"❌ Like failed from {account['uid']} - Status: {status}")
         return status, account['uid']
 
 async def send_all_likes(target_uid, server_name, url):
@@ -247,7 +260,7 @@ async def send_all_likes(target_uid, server_name, url):
     
     semaphore = asyncio.Semaphore(25)
     tasks = []
-    for acc in fresh_accounts[:2000]:  # Limit to 50 fresh accounts per request
+    for acc in fresh_accounts[:2000]:  # Limit to 2000 fresh accounts per request
         tasks.append(process_account(target_uid, encrypted_uid, acc, url, semaphore, server_name))
     
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -307,7 +320,8 @@ def get_player_info(encrypted_uid, server_name, token):
     try:
         response = requests.post(url, data=edata, headers=headers, verify=False, timeout=10)
         return decode_protobuf(response.content)
-    except:
+    except Exception as e:
+        print(f"❌ Get player info error: {e}")
         return None
 
 @app.route('/like', methods=['GET'])
